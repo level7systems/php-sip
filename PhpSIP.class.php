@@ -36,161 +36,72 @@ class PhpSIP
 {
     private $debug = false;
 
-    /**
-     * Min port
-     */
     private $min_port = 5065;
 
-    /**
-     * Max port
-     */
     private $max_port = 5265;
 
-    /**
-     * Final Response timer (in ms)
-     */
     private $fr_timer = 10000;
 
-    /**
-     * Allowed methods array
-     */
     private $allowed_methods = array(
         "CANCEL", "NOTIFY", "INVITE", "BYE", "REFER", "OPTIONS", "SUBSCRIBE", "MESSAGE", "PUBLISH", "REGISTER"
     );
 
     private $server_mode = false;
 
-    /**
-     * Dialog established
-     */
     private $dialog = false;
 
-    /**
-     * The opened socket we listen for incoming SIP messages
-     */
     private $socket;
 
-    /**
-     * Source IP address
-     */
     private $src_ip;
 
-    /**
-     * Source IP address
-     */
     private $user_agent = 'PHP SIP';
 
-    /**
-     * CSeq
-     */
     private $cseq = 20;
 
-    /**
-     * Source port
-     */
     private $src_port;
 
-    /**
-     * Call ID
-     */
     private $call_id;
 
-    /**
-     * Contact
-     */
     private $contact;
 
-    /**
-     * Request URI
-     */
     private $uri;
 
-    /**
-     * Request host
-     */
     private $host;
 
-    /**
-     * Request port
-     */
     private $port = 5060;
 
-    /**
-     * Outboud SIP proxy
-     */
     private $proxy;
 
-    /**
-     * Method
-     */
     private $method;
 
-    /**
-     * Auth username
-     */
     private $username;
 
-    /**
-     * Auth password
-     */
     private $password;
 
-    /**
-     * To
-     */
     private $to;
 
-    /**
-     * To tag
-     */
     private $to_tag;
 
-    /**
-     * From
-     */
     private $from;
 
-    /**
-     * From User
-     */
     private $from_user;
 
-    /**
-     * From tag
-     */
     private $from_tag;
 
-    /**
-     * Via tag
-     */
     private $via;
 
-    /**
-     * Content type
-     */
     private $content_type;
 
-    /**
-     * Body
-     */
     private $body;
 
-    /**
-     * Received SIP message
-     */
     private $rx_msg;
 
-    /**
-     * Received Response
-     */
     private $res_code;
+    private $res_codes = [];
     private $res_contact;
     private $res_cseq_method;
     private $res_cseq_number;
 
-    /**
-     * Received Request
-     */
     private $req_method;
     private $req_cseq_method;
     private $req_cseq_number;
@@ -201,29 +112,14 @@ class PhpSIP
     private $req_to_tag;
     private $req_via;
 
-    /**
-     * Authentication
-     */
     private $auth;
 
-    /**
-     * Routes
-     */
     private $routes = array();
 
-    /**
-     * Record-route
-     */
     private $record_route = array();
 
-    /**
-     * Request vias
-     */
     private $request_via = array();
 
-    /**
-     * Additional headers
-     */
     private $extra_headers = array();
 
     /**
@@ -243,22 +139,9 @@ class PhpSIP
                 throw new PhpSIPException("Invalid src_ip $src_ip");
             }
         } else {
-            // running in a web server
-            if (isset($_SERVER['SERVER_ADDR'])) {
-                $src_ip = $_SERVER['SERVER_ADDR'];
-            } // running from command line
-            else {
-                $addr = gethostbynamel(php_uname('n'));
+            $addr = gethostbynamel(gethostname());
 
-                $addr = [];
-                $addr[] = '10.137.216.49';
-
-                if (!is_array($addr) || !isset($addr[0]) || substr($addr[0], 0, 3) == '127') {
-                    throw new PhpSIPException("Failed to obtain IP address to bind. Please set bind address manualy.");
-                }
-
-                $src_ip = $addr[0];
-            }
+            $src_ip = $addr[0];
         }
 
         $this->src_ip = $src_ip;
@@ -282,11 +165,6 @@ class PhpSIP
         $this->createSocket();
     }
 
-    /**
-     * Create network socket
-     *
-     * @throws PhpSIPException
-     */
     private function createSocket()
     {
         $this->getPort();
@@ -322,10 +200,6 @@ class PhpSIP
         }
     }
 
-    /**
-     * Gets port number to bind
-     * @throws PhpSIPException
-     */
     private function getPort()
     {
         if ($this->src_port) {
@@ -364,19 +238,11 @@ class PhpSIP
         }
     }
 
-    /**
-     * Destructor
-     */
     public function __destruct()
     {
         $this->closeSocket();
     }
 
-    /**
-     * Close the connection
-     *
-     * @return bool True on success
-     */
     private function closeSocket()
     {
         socket_close($this->socket);
@@ -384,29 +250,16 @@ class PhpSIP
         $this->releasePort();
     }
 
-    /**
-     * Releases port
-     */
     private function releasePort()
     {
         clearstatcache();
     }
 
-    /**
-     * Sets debugging ON/OFF
-     *
-     * @param bool $status
-     */
     public function setDebug($status = false)
     {
         $this->debug = $status;
     }
 
-    /**
-     * Gets src IP
-     *
-     * @return string
-     */
     public function getSrcIp()
     {
         return $this->src_ip;
@@ -459,73 +312,6 @@ class PhpSIP
     }
 
     /**
-     * Sets method
-     *
-     * @param string $method
-     * @throws PhpSIPException
-     */
-    public function setMethod($method)
-    {
-        if (!in_array($method, $this->allowed_methods)) {
-            throw new PhpSIPException('Invalid method.');
-        }
-
-        $this->method = $method;
-
-        if ($method == 'INVITE') {
-            $body = "v=0\r\n";
-            $body .= "o=click2dial 0 0 IN IP4 " . $this->src_ip . "\r\n";
-            $body .= "s=click2dial call\r\n";
-            $body .= "c=IN IP4 " . $this->src_ip . "\r\n";
-            $body .= "t=0 0\r\n";
-            $body .= "m=audio 8000 RTP/AVP 0 8 18 3 4 97 98\r\n";
-            $body .= "a=rtpmap:0 PCMU/8000\r\n";
-            $body .= "a=rtpmap:18 G729/8000\r\n";
-            $body .= "a=rtpmap:97 ilbc/8000\r\n";
-            $body .= "a=rtpmap:98 speex/8000\r\n";
-
-            $this->body = $body;
-
-            $this->setContentType(null);
-        }
-
-        if ($method == 'REFER') {
-            $this->setBody('');
-        }
-
-        if ($method == 'CANCEL') {
-            $this->setBody('');
-            $this->setContentType(null);
-        }
-
-        if ($method == 'MESSAGE' && !$this->content_type) {
-            $this->setContentType(null);
-        }
-    }
-
-    /**
-     * Sets Content Type
-     * @param string $content_type
-     */
-    public function setContentType($content_type = null)
-    {
-        if ($content_type !== null) {
-            $this->content_type = $content_type;
-        } else {
-            switch ($this->method) {
-                case 'INVITE':
-                    $this->content_type = 'application/sdp';
-                    break;
-                case 'MESSAGE':
-                    $this->content_type = 'text/html; charset=utf-8';
-                    break;
-                default:
-                    $this->content_type = null;
-            }
-        }
-    }
-
-    /**
      * Sets SIP Proxy
      *
      * @param $proxy
@@ -547,16 +333,6 @@ class PhpSIP
         } else {
             $this->host = $this->proxy;
         }
-    }
-
-    /**
-     * Sets Contact header
-     *
-     * @param $v
-     */
-    public function setContact($v)
-    {
-        $this->contact = $v;
     }
 
     /**
@@ -640,7 +416,7 @@ class PhpSIP
     /**
      * Sends SIP Request
      *
-     * @return string Reply
+     * @return array Reply
      * @throws PhpSIPException
      */
     public function send()
@@ -661,15 +437,18 @@ class PhpSIP
 
         $this->sendData($data);
 
+        $this->res_codes[] = $this->res_code;
         $this->readMessage();
 
         if ($this->method == 'CANCEL' && $this->res_code == '200') {
             $i = 0;
             while (substr($this->res_code, 0, 1) != '4' && $i < 2) {
+                $this->res_codes[] = $this->res_code;
                 $this->readMessage();
                 $i++;
             }
         }
+        $this->res_codes[] = $this->res_code;
 
         if ($this->res_code == '407') {
             $this->cseq++;
@@ -706,7 +485,7 @@ class PhpSIP
         $this->extra_headers = array();
         $this->cseq++;
 
-        return $this->res_code;
+        return $this->res_codes;
     }
 
     /**
@@ -822,44 +601,6 @@ class PhpSIP
     }
 
     /**
-     * Calculates Digest authentication response
-     *
-     * @throws PhpSIPException
-     */
-    private function auth()
-    {
-        if (!$this->username) {
-            throw new PhpSIPException("Missing username");
-        }
-
-        if (!$this->password) {
-            throw new PhpSIPException("Missing password");
-        }
-
-        // realm
-        $m = array();
-        if (!preg_match('/^Proxy-Authenticate: .* realm="(.*)"/imU', $this->rx_msg, $m)) {
-            throw new PhpSIPException("Can't find realm in proxy-auth");
-        }
-
-        $realm = $m[1];
-
-        // nonce
-        $m = array();
-        if (!preg_match('/^Proxy-Authenticate: .* nonce="(.*)"/imU', $this->rx_msg, $m)) {
-            throw new PhpSIPException("Can't find nonce in proxy-auth");
-        }
-        $nonce = $m[1];
-
-        $ha1 = md5($this->username . ':' . $realm . ':' . $this->password);
-        $ha2 = md5($this->method . ':' . $this->uri);
-
-        $res = md5($ha1 . ':' . $nonce . ':' . $ha2);
-
-        $this->auth = 'Proxy-Authorization: Digest username="' . $this->username . '", realm="' . $realm . '", nonce="' . $nonce . '", uri="' . $this->uri . '", response="' . $res . '", algorithm=MD5';
-    }
-
-    /**
      * Sends data
      * @param string $data
      * @throws PhpSIPException
@@ -950,6 +691,103 @@ class PhpSIP
             }
 
             $this->dialog = $this->from_tag . '.' . $this->to_tag . '.' . $this->call_id;
+        }
+    }
+
+    /**
+     * Calculates Digest authentication response
+     *
+     * @throws PhpSIPException
+     */
+    private function auth()
+    {
+        if (!$this->username) {
+            throw new PhpSIPException("Missing username");
+        }
+
+        if (!$this->password) {
+            throw new PhpSIPException("Missing password");
+        }
+
+        // realm
+        $m = array();
+        if (!preg_match('/^Proxy-Authenticate: .* realm="(.*)"/imU', $this->rx_msg, $m)) {
+            throw new PhpSIPException("Can't find realm in proxy-auth");
+        }
+
+        $realm = $m[1];
+
+        // nonce
+        $m = array();
+        if (!preg_match('/^Proxy-Authenticate: .* nonce="(.*)"/imU', $this->rx_msg, $m)) {
+            throw new PhpSIPException("Can't find nonce in proxy-auth");
+        }
+        $nonce = $m[1];
+
+        $ha1 = md5($this->username . ':' . $realm . ':' . $this->password);
+        $ha2 = md5($this->method . ':' . $this->uri);
+
+        $res = md5($ha1 . ':' . $nonce . ':' . $ha2);
+
+        $this->auth = 'Proxy-Authorization: Digest username="' . $this->username . '", realm="' . $realm . '", nonce="' . $nonce . '", uri="' . $this->uri . '", response="' . $res . '", algorithm=MD5';
+    }
+
+    /**
+     * Calculates WWW authorization response
+     *
+     * @throws PhpSIPException
+     */
+    private function authWWW()
+    {
+        if (!$this->username) {
+            throw new PhpSIPException("Missing auth username");
+        }
+
+        if (!$this->password) {
+            throw new PhpSIPException("Missing auth password");
+        }
+
+        $qop_present = false;
+        if (strpos($this->rx_msg, 'qop=') !== false) {
+            $qop_present = true;
+
+            // we can only do qop="auth"
+            if (strpos($this->rx_msg, 'qop="auth"') === false) {
+                throw new PhpSIPException('Only qop="auth" digest authentication supported.');
+            }
+        }
+
+        // realm
+        $m = array();
+        if (!preg_match('/^WWW-Authenticate: .* realm="(.*)"/imU', $this->rx_msg, $m)) {
+            throw new PhpSIPException("Can't find realm in www-auth");
+        }
+
+        $realm = $m[1];
+
+        // nonce
+        $m = array();
+        if (!preg_match('/^WWW-Authenticate: .* nonce="(.*)"/imU', $this->rx_msg, $m)) {
+            throw new PhpSIPException("Can't find nonce in www-auth");
+        }
+
+        $nonce = $m[1];
+
+        $ha1 = md5($this->username . ':' . $realm . ':' . $this->password);
+        $ha2 = md5($this->method . ':' . $this->uri);
+
+        if ($qop_present) {
+            $cnonce = md5(time());
+
+            $res = md5($ha1 . ':' . $nonce . ':00000001:' . $cnonce . ':auth:' . $ha2);
+        } else {
+            $res = md5($ha1 . ':' . $nonce . ':' . $ha2);
+        }
+
+        $this->auth = 'Authorization: Digest username="' . $this->username . '", realm="' . $realm . '", nonce="' . $nonce . '", uri="' . $this->uri . '", response="' . $res . '", algorithm=MD5';
+
+        if ($qop_present) {
+            $this->auth .= ', qop="auth", nc="00000001", cnonce="' . $cnonce . '"';
         }
     }
 
@@ -1126,6 +964,83 @@ class PhpSIP
     }
 
     /**
+     * Sets Contact header
+     *
+     * @param $v
+     */
+    public function setContact($v)
+    {
+        $this->contact = $v;
+    }
+
+    /**
+     * Sets method
+     *
+     * @param string $method
+     * @throws PhpSIPException
+     */
+    public function setMethod($method)
+    {
+        if (!in_array($method, $this->allowed_methods)) {
+            throw new PhpSIPException('Invalid method.');
+        }
+
+        $this->method = $method;
+
+        if ($method == 'INVITE') {
+            $body = "v=0\r\n";
+            $body .= "o=click2dial 0 0 IN IP4 " . $this->src_ip . "\r\n";
+            $body .= "s=click2dial call\r\n";
+            $body .= "c=IN IP4 " . $this->src_ip . "\r\n";
+            $body .= "t=0 0\r\n";
+            $body .= "m=audio 8000 RTP/AVP 0 8 18 3 4 97 98\r\n";
+            $body .= "a=rtpmap:0 PCMU/8000\r\n";
+            $body .= "a=rtpmap:18 G729/8000\r\n";
+            $body .= "a=rtpmap:97 ilbc/8000\r\n";
+            $body .= "a=rtpmap:98 speex/8000\r\n";
+
+            $this->body = $body;
+
+            $this->setContentType(null);
+        }
+
+        if ($method == 'REFER') {
+            $this->setBody('');
+        }
+
+        if ($method == 'CANCEL') {
+            $this->setBody('');
+            $this->setContentType(null);
+        }
+
+        if ($method == 'MESSAGE' && !$this->content_type) {
+            $this->setContentType(null);
+        }
+    }
+
+    /**
+     * Sets Content Type
+     * @param string $content_type
+     */
+    public function setContentType($content_type = null)
+    {
+        if ($content_type !== null) {
+            $this->content_type = $content_type;
+        } else {
+            switch ($this->method) {
+                case 'INVITE':
+                    $this->content_type = 'application/sdp';
+                    break;
+                case 'MESSAGE':
+                    $this->content_type = 'text/html; charset=utf-8';
+                    break;
+                default:
+                    $this->content_type = null;
+            }
+        }
+    }
+
+    /**
      * Parse Request
      */
     private function parseRequest()
@@ -1200,65 +1115,6 @@ class PhpSIP
             if (preg_match('/^Call-ID:(.*)$/im', $this->rx_msg, $m)) {
                 $this->call_id = trim($m[1]);
             }
-        }
-    }
-
-    /**
-     * Calculates WWW authorization response
-     *
-     * @throws PhpSIPException
-     */
-    private function authWWW()
-    {
-        if (!$this->username) {
-            throw new PhpSIPException("Missing auth username");
-        }
-
-        if (!$this->password) {
-            throw new PhpSIPException("Missing auth password");
-        }
-
-        $qop_present = false;
-        if (strpos($this->rx_msg, 'qop=') !== false) {
-            $qop_present = true;
-
-            // we can only do qop="auth"
-            if (strpos($this->rx_msg, 'qop="auth"') === false) {
-                throw new PhpSIPException('Only qop="auth" digest authentication supported.');
-            }
-        }
-
-        // realm
-        $m = array();
-        if (!preg_match('/^WWW-Authenticate: .* realm="(.*)"/imU', $this->rx_msg, $m)) {
-            throw new PhpSIPException("Can't find realm in www-auth");
-        }
-
-        $realm = $m[1];
-
-        // nonce
-        $m = array();
-        if (!preg_match('/^WWW-Authenticate: .* nonce="(.*)"/imU', $this->rx_msg, $m)) {
-            throw new PhpSIPException("Can't find nonce in www-auth");
-        }
-
-        $nonce = $m[1];
-
-        $ha1 = md5($this->username . ':' . $realm . ':' . $this->password);
-        $ha2 = md5($this->method . ':' . $this->uri);
-
-        if ($qop_present) {
-            $cnonce = md5(time());
-
-            $res = md5($ha1 . ':' . $nonce . ':00000001:' . $cnonce . ':auth:' . $ha2);
-        } else {
-            $res = md5($ha1 . ':' . $nonce . ':' . $ha2);
-        }
-
-        $this->auth = 'Authorization: Digest username="' . $this->username . '", realm="' . $realm . '", nonce="' . $nonce . '", uri="' . $this->uri . '", response="' . $res . '", algorithm=MD5';
-
-        if ($qop_present) {
-            $this->auth .= ', qop="auth", nc="00000001", cnonce="' . $cnonce . '"';
         }
     }
 
@@ -1479,5 +1335,4 @@ class PhpSIP
         $this->routes = array();
     }
 }
-
 ?>
