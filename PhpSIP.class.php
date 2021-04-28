@@ -54,7 +54,7 @@ class PhpSIP
   /**
    * Lock file
    */
-  private $lock_file = '/dev/shm/cache/PhpSIP.lock';
+  private $lock_file = '/tmp/PhpSIP.lock';
   
   /**
    * Persistent Lock file 
