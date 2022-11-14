@@ -65,7 +65,7 @@ class PhpSIP
    * Allowed methods array
    */
   private $allowed_methods = array(
-    "CANCEL","NOTIFY", "INVITE","BYE","REFER","OPTIONS","SUBSCRIBE","MESSAGE", "PUBLISH", "REGISTER"
+    "CANCEL","NOTIFY", "INVITE","BYE","REFER","OPTIONS","SUBSCRIBE","MESSAGE", "PUBLISH", "REGISTER", "INFO"
   );
   
   private $server_mode = false;
@@ -779,10 +779,10 @@ class PhpSIP
       $this->readMessage();
     }
     
-    if (substr($this->res_code,0,1) == '1')
+    if (substr($this->res_code,0,1) == '1' && $this->res_code != '183')
     {
       $i = 0;
-      while (substr($this->res_code,0,1) == '1' && $i < 4)
+      while (substr($this->res_code,0,1) == '1' && $this->res_code != '183' && $i < 4)
       {
         $this->readMessage();
         $i++;
