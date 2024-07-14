@@ -753,6 +753,17 @@ class PhpSIP
       }
     }
     
+    if (substr($this->res_code,0,1) == '1' && $this->res_code != '183')
+    {
+      $i = 0;
+      while (substr($this->res_code,0,1) == '1' && $this->res_code != '183' && $i < 4)
+      {
+        $this->readMessage();
+        $i++;
+      }
+    }
+
+
     if ($this->res_code == '407')
     {
       $this->cseq++;
@@ -779,15 +790,6 @@ class PhpSIP
       $this->readMessage();
     }
     
-    if (substr($this->res_code,0,1) == '1' && $this->res_code != '183')
-    {
-      $i = 0;
-      while (substr($this->res_code,0,1) == '1' && $this->res_code != '183' && $i < 4)
-      {
-        $this->readMessage();
-        $i++;
-      }
-    }
     
     $this->extra_headers = array();
     $this->cseq++;
@@ -954,6 +956,15 @@ class PhpSIP
       $this->dialog = $this->from_tag.'.'.$this->to_tag.'.'.$this->call_id;
     }
   }
+
+	/**
+	 * Wait for message and return the result code
+	 */
+
+	public function getCode() {
+		$this->readMessage();
+		return $this->res_code;
+	}
   
   /**
    * Parse Response
