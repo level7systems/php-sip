@@ -1,0 +1,29 @@
+{
+    "name": "level7systems/php-sip",
+    "description": "PHP SIP User Agent Client library",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Chris Maciejewski",
+            "email": "chris@level7systems.co.uk"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0|^10.0|^11.0"
+    },
+    "autoload": {
+        "classmap": [
+            "PhpSIP.class.php",
+            "PhpSIP.Exception.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    }
+}
