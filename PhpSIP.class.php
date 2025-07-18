@@ -240,7 +240,7 @@ class PhpSIP
    * 
    * @param $src_ip Ip address to bind (optional)
    */
-  public function __construct($src_ip = null, $src_port = null, $fr_timer = null)
+  public function __construct(?string $src_ip = null, ?int $src_port = null, ?int $fr_timer = null)
   {
     if (!function_exists('socket_create'))
     {
@@ -1328,7 +1328,7 @@ class PhpSIP
   /**
    * Sets Content Type
    */
-  public function setContentType($content_type = null)
+  public function setContentType(?string $content_type = null)
   {
     if ($content_type !== null)
     {
@@ -1394,7 +1394,7 @@ class PhpSIP
    * 
    * @param string $v
    */
-  public function setCallId($v = null)
+  public function setCallId(?string $v = null)
   {
     if ($v)
     {
