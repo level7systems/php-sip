@@ -34,7 +34,24 @@ require_once 'PhpSIP.Exception.php';
 
 class PhpSIP
 {
+  private static $compiled_patterns = array();
+  
   private $debug = false;
+  
+  /**
+   * Get compiled regex pattern with caching
+   * 
+   * @param string $pattern_key
+   * @param string $pattern
+   * @return string
+   */
+  private static function getCompiledPattern($pattern_key, $pattern)
+  {
+    if (!isset(self::$compiled_patterns[$pattern_key])) {
+      self::$compiled_patterns[$pattern_key] = $pattern;
+    }
+    return self::$compiled_patterns[$pattern_key];
+  }
   
   /**
    * Min port
@@ -249,7 +266,7 @@ class PhpSIP
     
     if ($src_ip)
     {
-      if (!preg_match('/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/', $src_ip))
+      if (!preg_match(self::getCompiledPattern('ip_validation', '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/'), $src_ip))
       {
         throw new PhpSIPException("Invalid src_ip $src_ip");
       }
@@ -279,7 +296,7 @@ class PhpSIP
     
     if ($src_port)
     {
-      if (!preg_match('/^[0-9]+$/',$src_port))
+      if (!preg_match(self::getCompiledPattern('numeric_validation', '/^[0-9]+$/'), $src_port))
       {
         throw new PhpSIPException("Invalid src_port $src_port");
       }
@@ -290,7 +307,7 @@ class PhpSIP
     
     if ($fr_timer)
     {
-      if (!preg_match('/^[0-9]+$/',$fr_timer))
+      if (!preg_match(self::getCompiledPattern('numeric_validation', '/^[0-9]+$/'), $fr_timer))
       {
         throw new PhpSIPException("Invalid fr_timer $fr_timer");
       }
@@ -516,7 +533,7 @@ class PhpSIP
     }
     
     $m = array();
-    if (!preg_match('/sip:(.*)@/i',$this->from,$m))
+    if (!preg_match(self::getCompiledPattern('sip_uri_parse', '/sip:(.*)@/i'), $this->from, $m))
     {
       throw new PhpSIPException('Failed to parse From username.');
     }
@@ -603,7 +620,7 @@ class PhpSIP
     {
       $temp = explode(":",$this->proxy);
       
-      if (!preg_match('/^[0-9]+$/',$temp[1]))
+      if (!preg_match(self::getCompiledPattern('numeric_validation', '/^[0-9]+$/'), $temp[1]))
       {
         throw new PhpSIPException("Invalid port number ".$temp[1]);
       }
@@ -815,7 +832,7 @@ class PhpSIP
       throw new PhpSIPException("Can't send - empty data");
     }
     
-    if (preg_match('/^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/', $this->host))
+    if (preg_match(self::getCompiledPattern('ip_validation', '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/'), $this->host))
     {
       $ip_address = $this->host;
     }
@@ -931,7 +948,7 @@ class PhpSIP
     
     // Response
     $m = array();
-    if (preg_match('/^SIP\/2\.0 ([0-9]{3})/', $this->rx_msg, $m))
+    if (preg_match(self::getCompiledPattern('sip_response', '/^SIP\/2\.0 ([0-9]{3})/'), $this->rx_msg, $m))
     {
       $this->res_code = trim($m[1]);
       
@@ -964,7 +981,7 @@ class PhpSIP
     $m = array();
     $this->req_via = array();
     
-    if (preg_match_all('/^Via: (.*)$/im', $this->rx_msg, $m))
+    if (preg_match_all(self::getCompiledPattern('via_header', '/^Via: (.*)$/im'), $this->rx_msg, $m))
     {
       foreach ($m[1] as $via)
       {
@@ -977,7 +994,7 @@ class PhpSIP
     
     // To tag
     $m = array();
-    if (preg_match('/^To: .*;tag=(.*)$/im', $this->rx_msg, $m))
+    if (preg_match(self::getCompiledPattern('to_tag', '/^To: .*;tag=(.*)$/im'), $this->rx_msg, $m))
     {
       $this->to_tag = trim($m[1]);
     }
@@ -1013,13 +1030,13 @@ class PhpSIP
     // Request via
     $m = array();
     $this->req_via = array();
-    if (preg_match_all('/^Via: (.*)$/im',$this->rx_msg,$m))
+    if (preg_match_all(self::getCompiledPattern('via_header', '/^Via: (.*)$/im'), $this->rx_msg, $m))
     {
       if ($this->server_mode)
       {
         // set $this->host to top most via
         $m2 = array();
-        if (preg_match('/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/',$m[1][0],$m2))
+        if (preg_match(self::getCompiledPattern('ip_extract', '/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/'), $m[1][0], $m2))
         {
           $this->host = $m2[0];
         }
@@ -1040,35 +1057,35 @@ class PhpSIP
     // Request CSeq number
     $m = array();
     
-    if (preg_match('/^CSeq: ([0-9]+)/im', $this->rx_msg, $m))
+    if (preg_match(self::getCompiledPattern('cseq_number', '/^CSeq: ([0-9]+)/im'), $this->rx_msg, $m))
     {
       $this->req_cseq_number = trim($m[1]);
     }
 
     // Request From
     $m = array();
-    if (preg_match('/^From: (.*)/im', $this->rx_msg, $m))
+    if (preg_match(self::getCompiledPattern('from_header', '/^From: (.*)/im'), $this->rx_msg, $m))
     {
       $this->req_from = (strpos($m[1],';')) ? substr($m[1],0,strpos($m[1],';')) : $m[1];
     }
     
     // Request From tag
     $m = array();
-    if (preg_match('/^From:.*;tag=(.*)$/im', $this->rx_msg, $m))
+    if (preg_match(self::getCompiledPattern('from_tag', '/^From:.*;tag=(.*)$/im'), $this->rx_msg, $m))
     {
       $this->req_from_tag = trim($m[1]);
     }
     
     // Request To
     $m = array();
-    if (preg_match('/^To: (.*)/im', $this->rx_msg, $m))
+    if (preg_match(self::getCompiledPattern('to_header', '/^To: (.*)/im'), $this->rx_msg, $m))
     {
       $this->req_to = (strpos($m[1],';')) ? substr($m[1],0,strpos($m[1],';')) : $m[1];
     }
     
     // Request To tag
     $m = array();
-    if (preg_match('/^To:.*;tag=(.*)$/im', $this->rx_msg, $m))
+    if (preg_match(self::getCompiledPattern('to_tag', '/^To: .*;tag=(.*)$/im'), $this->rx_msg, $m))
     {
       $this->req_to_tag = trim($m[1]);
     }
@@ -1081,7 +1098,7 @@ class PhpSIP
     if (!$this->call_id)
     {
       $m = array();
-      if (preg_match('/^Call-ID:(.*)$/im', $this->rx_msg, $m))
+      if (preg_match(self::getCompiledPattern('call_id', '/^Call-ID:(.*)$/im'), $this->rx_msg, $m))
       {
         $this->call_id = trim($m[1]);
       }
@@ -1417,7 +1434,7 @@ class PhpSIP
   {
     $m = array();
     
-    if (preg_match('/^'.$name.': (.*)$/im', $this->rx_msg, $m))
+    if (preg_match(self::getCompiledPattern('header_'.$name, '/^'.$name.': (.*)$/im'), $this->rx_msg, $m))
     {
       return trim($m[1]);
     }
@@ -1462,7 +1479,7 @@ class PhpSIP
     
     // realm
     $m = array();
-    if (!preg_match('/^Proxy-Authenticate: .* realm="(.*)"/imU',$this->rx_msg, $m))
+    if (!preg_match(self::getCompiledPattern('proxy_auth_realm', '/^Proxy-Authenticate: .* realm="(.*)"/imU'), $this->rx_msg, $m))
     {
       throw new PhpSIPException("Can't find realm in proxy-auth");
     }
@@ -1471,7 +1488,7 @@ class PhpSIP
     
     // nonce
     $m = array();
-    if (!preg_match('/^Proxy-Authenticate: .* nonce="(.*)"/imU',$this->rx_msg, $m))
+    if (!preg_match(self::getCompiledPattern('proxy_auth_nonce', '/^Proxy-Authenticate: .* nonce="(.*)"/imU'), $this->rx_msg, $m))
     {
       throw new PhpSIPException("Can't find nonce in proxy-auth");
     }
@@ -1516,7 +1533,7 @@ class PhpSIP
     
     // realm
     $m = array();
-    if (!preg_match('/^WWW-Authenticate: .* realm="(.*)"/imU',$this->rx_msg, $m))
+    if (!preg_match(self::getCompiledPattern('www_auth_realm', '/^WWW-Authenticate: .* realm="(.*)"/imU'), $this->rx_msg, $m))
     {
       throw new PhpSIPException("Can't find realm in www-auth");
     }
@@ -1525,7 +1542,7 @@ class PhpSIP
     
     // nonce
     $m = array();
-    if (!preg_match('/^WWW-Authenticate: .* nonce="(.*)"/imU',$this->rx_msg, $m))
+    if (!preg_match(self::getCompiledPattern('www_auth_nonce', '/^WWW-Authenticate: .* nonce="(.*)"/imU'), $this->rx_msg, $m))
     {
       throw new PhpSIPException("Can't find nonce in www-auth");
     }
@@ -1665,7 +1682,7 @@ class PhpSIP
     
     $m = array();
     
-    if (preg_match_all('/^Record-Route: (.*)$/im', $this->rx_msg, $m))
+    if (preg_match_all(self::getCompiledPattern('record_route', '/^Record-Route: (.*)$/im'), $this->rx_msg, $m))
     {
       foreach ($m[1] as $route_header)
       {
@@ -1693,7 +1710,7 @@ class PhpSIP
     
     $m = array();
     
-    if (preg_match('/^Contact:.*<(.*)>/im', $this->rx_msg, $m))
+    if (preg_match(self::getCompiledPattern('contact_header', '/^Contact:.*<(.*)>/im'), $this->rx_msg, $m))
     {
       $output = trim($m[1]);
       
@@ -1719,7 +1736,7 @@ class PhpSIP
     
     $m = array();
     
-    if (preg_match('/^CSeq: [0-9]+ (.*)$/im', $this->rx_msg, $m))
+    if (preg_match(self::getCompiledPattern('cseq_method', '/^CSeq: [0-9]+ (.*)$/im'), $this->rx_msg, $m))
     {
       $output = trim($m[1]);
     }
